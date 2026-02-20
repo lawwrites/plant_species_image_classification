@@ -1,93 +1,184 @@
-# D604
+# Plant Species Image Classification Using Convolutional Neural Networks
 
+## Research Overview
 
+This repository documents a supervised deep learning study investigating the feasibility of automated plant species classification from RGB imagery using a Convolutional Neural Network (CNN).
 
-## Getting started
+The objective of this work is to evaluate whether a moderately sized CNN, trained on standardized 128×128 RGB plant images, can achieve robust multi-class classification across 12 morphologically distinct plant species.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The broader motivation for this research includes:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+* Supporting ecological monitoring workflows
+* Assisting early-stage crop and weed identification
+* Reducing manual annotation burden in agricultural research settings
 
-## Add your files
+---
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Dataset Description
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/wgu-gitlab-environment/student-repos/lwheat11/d604.git
-git branch -M main
-git push -uf origin main
-```
+The dataset consists of:
 
-## Integrate with your tools
+* **4,750 RGB images**
+* Image resolution: **128 × 128 pixels**
+* **12 plant species classes**
 
-- [ ] [Set up project integrations](https://gitlab.com/wgu-gitlab-environment/student-repos/lwheat11/d604/-/settings/integrations)
+Class labels were encoded numerically to support multi-class optimization using CrossEntropyLoss.
 
-## Collaborate with your team
+To preserve class balance across evaluation stages, stratified sampling was applied:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+* Training set: 3,800 images (80%)
+* Validation set: 475 images (10%)
+* Test set: 475 images (10%)
 
-## Test and Deploy
+Class distribution analysis confirmed moderate imbalance across species, which was addressed via stratified splitting rather than resampling.
 
-Use the built-in continuous integration in GitLab.
+---
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## Preprocessing and Data Pipeline
 
-***
+All preprocessing was implemented using a custom PyTorch Dataset class to maintain full control over the transformation pipeline.
 
-# Editing this README
+### Image Standardization
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+1. Resize to 128 × 128 pixels
+2. Convert to floating-point tensor (C, H, W format)
+3. Normalize using training-set channel statistics
 
-## Suggestions for a good README
+Training set statistics:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+* Mean: [0.1403, 0.1614, 0.1717]
+* Std:  [0.1335, 0.1478, 0.1652]
 
-## Name
-Choose a self-explaining name for your project.
+Normalization ensures stable gradient propagation and improves convergence reliability.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Data Augmentation (Training Only)
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+To improve generalization:
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+* Random horizontal flipping (p = 0.5)
+* Random rotation within ±20°
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+Augmentation was applied exclusively to the training set to prevent information leakage.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+---
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## Model Architecture
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+A custom Convolutional Neural Network was designed with three convolutional blocks followed by a fully connected classifier.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Feature Extraction Layers
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+* Conv2D (3 → 32), kernel 3×3, padding=1
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+* ReLU activation
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+* MaxPooling (2×2)
 
-## License
-For open source projects, say how it is licensed.
+* Conv2D (32 → 64)
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+* ReLU
+
+* MaxPooling
+
+* Conv2D (64 → 128)
+
+* ReLU
+
+* MaxPooling
+
+After three pooling operations, spatial resolution is reduced to 16×16 with 128 channels.
+
+### Classification Head
+
+* Flatten (128 × 16 × 16 → 32,768)
+* Fully Connected (32,768 → 256)
+* ReLU
+* Dropout (p = 0.3)
+* Fully Connected (256 → 12)
+
+Total trainable parameters: **8,485,196**
+
+The architecture balances representational capacity with computational efficiency suitable for CPU training.
+
+---
+
+## Optimization Strategy
+
+Loss Function:
+
+* CrossEntropyLoss (multi-class classification)
+
+Optimizer:
+
+* Adam
+* Learning rate: 3 × 10⁻⁴
+* Weight decay: 1 × 10⁻⁴
+
+Training duration:
+
+* Maximum 10 epochs
+* Early stopping with patience = 3 based on validation loss
+
+The best-performing model (lowest validation loss) was checkpointed and restored for final evaluation.
+
+---
+
+## Experimental Results
+
+### Final Training Metrics
+
+* Loss: 0.425
+* Accuracy: 85.3%
+
+### Final Validation Metrics
+
+* Loss: 0.404
+* Accuracy: 87.2%
+* Macro F1-score: 0.851
+
+The macro F1-score indicates balanced predictive performance across classes despite moderate class imbalance.
+
+### Confusion Matrix Analysis
+
+Confusion matrix inspection revealed:
+
+* Strong diagonal dominance across most species
+* Minor misclassification between morphologically similar species
+
+These results suggest that the learned convolutional filters successfully capture discriminative structural and color-based features.
+
+---
+
+## Model Persistence
+
+The trained model weights are stored as:
+
+`cnn_flower_model.pth`
+
+This enables reproducibility and downstream experimentation without retraining.
+
+---
+
+## Research Contributions Demonstrated
+
+* End-to-end deep learning pipeline implementation in PyTorch
+* Controlled image normalization using dataset-specific statistics
+* Custom data augmentation without reliance on high-level wrappers
+* CNN architecture design for moderate-resolution ecological imagery
+* Early stopping implementation to mitigate overfitting
+* Multi-metric evaluation including macro F1 and confusion matrix analysis
+
+---
+
+## Future Work
+
+Potential extensions include:
+
+* Transfer learning using pretrained backbones (e.g., ResNet)
+* Class imbalance mitigation via weighted loss functions
+* Integration of Grad-CAM for model interpretability
+* Deployment for field-based inference
+
+---
+
+This repository represents an applied investigation into automated plant species recognition using convolutional neural networks, with emphasis on reproducibility, controlled experimentation, and measurable performance evaluation.
